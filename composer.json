@@ -1,0 +1,28 @@
+{
+  "name": "haoc/opentelemetry-laravel",
+  "description": "HAOC OpenTelemetry instrumentation for Laravel — traces, logs, user identity, and infrastructure tracking",
+  "type": "library",
+  "license": "proprietary",
+  "version": "1.0.0",
+  "require": {
+    "php": "^8.2",
+    "laravel/framework": "^11.0 || ^12.0",
+    "open-telemetry/api": "*",
+    "open-telemetry/sdk": "*",
+    "open-telemetry/exporter-otlp": "*"
+  },
+  "autoload": {
+    "psr-4": {
+      "Haoc\\OpenTelemetry\\": "src/"
+    }
+  },
+  "extra": {
+    "laravel": {
+      "providers": [
+        "Haoc\\OpenTelemetry\\HaocOpenTelemetryServiceProvider"
+      ]
+    }
+  },
+  "minimum-stability": "stable",
+  "prefer-stable": true
+}
