@@ -4,23 +4,19 @@ Pacote de instrumentação OpenTelemetry para aplicações Laravel do HAOC.
 
 ## Instalação
 
-No `composer.json` da aplicação, adicione o repositório local:
-
-```json
-{
-  "repositories": [
-    {
-      "type": "path",
-      "url": "../haoc-opentelemetry/packages/laravel"
-    }
-  ],
-  "require": {
-    "haoc/opentelemetry-laravel": "*"
-  }
-}
+```bash
+composer require haoc/opentelemetry-laravel
 ```
 
 O package auto-discovery do Laravel registra o service provider automaticamente.
+
+> **Desenvolvimento local**: Se precisar testar alterações antes de publicar, use um repositório `path` no `composer.json`:
+> ```json
+> {
+>   "repositories": [{ "type": "path", "url": "../haoc-opentelemetry/packages/laravel" }],
+>   "require": { "haoc/opentelemetry-laravel": "*" }
+> }
+> ```
 
 ## Configuração
 
@@ -83,13 +79,15 @@ Adicione o canal OTLP na config de logging:
 
 ## Docker
 
-No `docker-compose.yml`, adicione a rede do SigNoz e monte o pacote:
+No `docker-compose.yml`, adicione a rede do SigNoz:
 
 ```yaml
 services:
   app:
-    volumes:
-      - ../haoc-opentelemetry/packages/laravel:/var/www/vendor/haoc/opentelemetry-laravel
+    environment:
+      - OTEL_SERVICE_NAME=meu-servico
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://signoz-otel-collector:4318
+      - OTEL_ENVIRONMENT=${APP_ENV-local}
     networks:
       - app
       - signoz
@@ -150,3 +148,49 @@ Campos automaticamente redatados como `[REDACTED]`:
 ## Licença
 
 MIT
+
+---
+
+## Publicação (Packagist)
+
+Este pacote é publicado no [Packagist](https://packagist.org/packages/haoc/opentelemetry-laravel) a partir de um subtree split do monorepo.
+
+### Passo a passo para publicar uma nova versão
+
+```bash
+# 1. No monorepo, commite suas alterações normalmente
+cd /path/to/haoc-opentelemetry
+git add -A && git commit -m "feat: descrição da alteração"
+git push origin master
+
+# 2. Atualize o subtree split para a branch dedicada
+git subtree split --prefix=packages/laravel -b laravel-split
+
+# 3. Push para o repositório dedicado do Packagist
+git push laravel-origin laravel-split:master --force
+
+# 4. Crie a tag de versão e envie
+git tag vX.Y.Z laravel-split
+git push laravel-origin vX.Y.Z
+```
+
+### Configuração inicial (já feita)
+
+O remote `laravel-origin` aponta para `git@github.com:japostulo/opentelemetry-laravel.git`.
+
+Para verificar: `git remote -v | grep laravel`
+
+### Versionamento
+
+Siga [SemVer](https://semver.org/lang/pt-BR/):
+- **patch** (v1.0.1): correções de bugs
+- **minor** (v1.1.0): novas funcionalidades retrocompatíveis
+- **major** (v2.0.0): breaking changes
+
+O Packagist lê as tags git automaticamente — o campo `version` no `composer.json` é ignorado quando há tags.
+
+### Atualizando nas aplicações consumidoras
+
+```bash
+composer update haoc/opentelemetry-laravel
+```
