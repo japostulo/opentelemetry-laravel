@@ -11,8 +11,18 @@ class OtelLogChannelFactory
     {
         $otelLogger = app(LoggerInterface::class);
 
+        $destination = $config['destination']
+            ?? config('haoc-otel.log_destination', 'both');
+        // Emit via OTLP unless the consumer opted out.
+        $emitToOtlp = !in_array($destination, ['console', 'none'], true);
+
         return new Logger('otlp', [
-            new OtelHandler($otelLogger, $config['level'] ?? 'debug'),
+            new OtelHandler(
+                $otelLogger,
+                $config['level'] ?? 'debug',
+                true,
+                $emitToOtlp,
+            ),
         ]);
     }
 }

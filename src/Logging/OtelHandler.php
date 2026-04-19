@@ -26,12 +26,17 @@ class OtelHandler extends AbstractProcessingHandler
         private readonly LoggerInterface $otelLogger,
         int|string|Level $level = Level::Debug,
         bool $bubble = true,
+        private readonly bool $emitToOtlp = true,
     ) {
         parent::__construct($level, $bubble);
     }
 
     protected function write(LogRecord $record): void
     {
+        if (!$this->emitToOtlp) {
+            return;
+        }
+
         $severity = self::MONOLOG_TO_OTEL[$record->level->value] ?? Severity::INFO;
 
         $otelRecord = (new OtelLogRecord($record->message))

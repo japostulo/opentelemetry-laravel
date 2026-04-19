@@ -3,6 +3,7 @@
 namespace Haoc\OpenTelemetry\Middleware;
 
 use Closure;
+use Haoc\OpenTelemetry\Profile;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use OpenTelemetry\API\Trace\SpanKind;
@@ -12,14 +13,26 @@ use Symfony\Component\HttpFoundation\Response;
 
 class TraceRequest
 {
-    public function __construct(private TracerInterface $tracer)
-    {
+    public function __construct(
+        private TracerInterface $tracer,
+        private Profile $profile,
+    ) {
     }
 
     public function handle(Request $request, Closure $next): Response
     {
         $route = $request->route()?->uri() ?? $request->path();
         $method = $request->method();
+
+        // ── Short-circuit: ignored routes pass through untraced ────────
+        $ignorePatterns = $this->profile->get('ignore_routes', []);
+        if (Profile::matchesAny($ignorePatterns, $route)) {
+            return $next($request);
+        }
+
+        $captureBody     = (bool) $this->profile->get('capture_request_body', false);
+        $captureResponse = (bool) $this->profile->get('capture_response_body', false);
+
         $spanName = "{$method} /{$route}";
 
         $sensitiveFields = config('haoc-otel.sensitive_fields', []);
@@ -101,8 +114,12 @@ class TraceRequest
             $span->setAttribute("params.{$key}", is_string($value) ? $value : json_encode($value));
         }
 
-        // Body (POST/PUT/PATCH)
-        if (in_array($method, ['POST', 'PUT', 'PATCH']) && $request->isJson()) {
+        // Body (POST/PUT/PATCH) — only when profile allows
+        if (
+            $captureBody
+            && in_array($method, ['POST', 'PUT', 'PATCH'])
+            && $request->isJson()
+        ) {
             foreach ($this->flattenAttributes('body', $this->sanitize($request->all(), $sensitiveFields)) as $key => $value) {
                 $span->setAttribute($key, $value);
             }

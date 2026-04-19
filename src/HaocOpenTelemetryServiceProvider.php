@@ -7,11 +7,14 @@ use OpenTelemetry\API\Logs\LoggerInterface;
 use OpenTelemetry\API\Trace\TracerProviderInterface;
 use OpenTelemetry\API\Trace\TracerInterface;
 use OpenTelemetry\SDK\Trace\TracerProvider;
-use OpenTelemetry\SDK\Trace\SpanProcessor\SimpleSpanProcessor;
+use OpenTelemetry\SDK\Trace\SpanProcessor\BatchSpanProcessor;
+use OpenTelemetry\SDK\Trace\Sampler\ParentBased;
+use OpenTelemetry\SDK\Trace\Sampler\TraceIdRatioBasedSampler;
 use OpenTelemetry\SDK\Logs\LoggerProvider;
-use OpenTelemetry\SDK\Logs\Processor\SimpleLogRecordProcessor;
+use OpenTelemetry\SDK\Logs\Processor\BatchLogRecordProcessor;
 use OpenTelemetry\SDK\Resource\ResourceInfo;
 use OpenTelemetry\SDK\Common\Attribute\Attributes;
+use OpenTelemetry\SDK\Common\Time\ClockFactory;
 use OpenTelemetry\SemConv\ResourceAttributes;
 use OpenTelemetry\Contrib\Otlp\SpanExporter;
 use OpenTelemetry\Contrib\Otlp\LogsExporter;
@@ -24,28 +27,46 @@ class HaocOpenTelemetryServiceProvider extends ServiceProvider
     {
         $this->mergeConfigFrom(__DIR__ . '/../config/haoc-otel.php', 'haoc-otel');
 
-        $this->app->singleton('otel.resource', function () {
+        // ── Profile (resolved once) ──────────────────────────────────────
+        $this->app->singleton(Profile::class, function () {
+            return Profile::fromConfig(config('haoc-otel'));
+        });
+
+        $this->app->singleton('otel.resource', function ($app) {
             $config = config('haoc-otel');
+            $profile = $app->make(Profile::class);
 
             return ResourceInfo::create(Attributes::create([
                 ResourceAttributes::SERVICE_NAME => $config['service_name'],
                 'deployment.environment' => $config['environment'],
                 'service.version' => config('app.version', '0.0.0'),
+                'haoc.otel.profile' => $profile->get('profile'),
             ]));
         });
 
-        // ── Trace Provider ──────────────────────────────────────────────
+        // ── Trace Provider (Batch + ParentBased(TraceIdRatio)) ───────────
         $this->app->singleton(TracerProviderInterface::class, function ($app) {
             $endpoint = config('haoc-otel.endpoint');
+            $profile  = $app->make(Profile::class);
 
             $transport = (new OtlpHttpTransportFactory())->create(
                 $endpoint . '/v1/traces',
                 ContentTypes::PROTOBUF,
             );
 
+            $processor = new BatchSpanProcessor(
+                new SpanExporter($transport),
+                ClockFactory::getDefault(),
+            );
+
+            $sampler = new ParentBased(
+                new TraceIdRatioBasedSampler((float) $profile->get('sample_ratio', 1.0)),
+            );
+
             return TracerProvider::builder()
                 ->setResource($app->make('otel.resource'))
-                ->addSpanProcessor(new SimpleSpanProcessor(new SpanExporter($transport)))
+                ->addSpanProcessor($processor)
+                ->setSampler($sampler)
                 ->build();
         });
 
@@ -54,7 +75,7 @@ class HaocOpenTelemetryServiceProvider extends ServiceProvider
                 ->getTracer(config('haoc-otel.service_name'));
         });
 
-        // ── Log Provider ────────────────────────────────────────────────
+        // ── Log Provider (Batch) ─────────────────────────────────────────
         $this->app->singleton(LoggerProvider::class, function ($app) {
             $endpoint = config('haoc-otel.endpoint');
 
@@ -63,9 +84,14 @@ class HaocOpenTelemetryServiceProvider extends ServiceProvider
                 ContentTypes::PROTOBUF,
             );
 
+            $processor = new BatchLogRecordProcessor(
+                new LogsExporter($transport),
+                ClockFactory::getDefault(),
+            );
+
             return LoggerProvider::builder()
                 ->setResource($app->make('otel.resource'))
-                ->addLogRecordProcessor(new SimpleLogRecordProcessor(new LogsExporter($transport)))
+                ->addLogRecordProcessor($processor)
                 ->build();
         });
 
