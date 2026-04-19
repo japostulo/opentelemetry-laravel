@@ -136,10 +136,10 @@ networks:
 
 | Atributo | Origem |
 |---|---|
-| `page.route` | `@haoc/opentelemetry-web` |
-| `browser.name` | `@haoc/opentelemetry-web` |
-| `device.type` | `@haoc/opentelemetry-web` |
-| `haoc.user.id` | `@haoc/opentelemetry-web` |
+| `page.route` | `@haocruz/opentelemetry-web` |
+| `browser.name` | `@haocruz/opentelemetry-web` |
+| `device.type` | `@haocruz/opentelemetry-web` |
+| `haoc.user.id` | `@haocruz/opentelemetry-web` |
 
 ## Dados Sensíveis (Redação Automática)
 
