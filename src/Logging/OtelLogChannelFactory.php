@@ -11,10 +11,14 @@ class OtelLogChannelFactory
     {
         $otelLogger = app(LoggerInterface::class);
 
-        $destination = $config['destination']
-            ?? config('haoc-otel.log_destination', 'both');
-        // Emit via OTLP unless the consumer opted out.
-        $emitToOtlp = !in_array($destination, ['console', 'none'], true);
+        // When destination is provided explicitly in the channel config
+        // (e.g. config/logging.php), it takes precedence over the runtime
+        // value. Otherwise leave the handler in dynamic mode (null) so it
+        // re-reads `haoc-otel.log_destination` on every write.
+        $explicitDestination = $config['destination'] ?? null;
+        $emitToOtlp = $explicitDestination === null
+            ? null
+            : !in_array($explicitDestination, ['console', 'none'], true);
 
         return new Logger('otlp', [
             new OtelHandler(

@@ -41,8 +41,9 @@ final class ProfileTest extends TestCase
         $p = Profile::fromConfig($this->baseConfig([
             'profile' => Profile::STANDARD,
         ]));
-        $this->assertTrue($p->get('capture_request_body'));
-        $this->assertTrue($p->get('capture_response_body'));
+        // standard baseline no longer captures body into span attributes (body goes to log json-attr)
+        $this->assertFalse($p->get('capture_request_body'));
+        $this->assertFalse($p->get('capture_response_body'));
     }
 
     public function test_verbose_profile_has_no_default_ignore_routes(): void
@@ -157,10 +158,10 @@ final class ProfileTest extends TestCase
     public function test_capture_body_invalid_value_falls_back_to_baseline(): void
     {
         $p = Profile::fromConfig($this->baseConfig([
-            'profile'              => Profile::STANDARD, // baseline = true
+            'profile'              => Profile::STANDARD, // baseline = false (body goes to log)
             'capture_request_body' => 'maybe',
         ]));
-        $this->assertTrue($p->get('capture_request_body'));
+        $this->assertFalse($p->get('capture_request_body'));
     }
 
     public function test_capture_body_native_bool_passes_through(): void

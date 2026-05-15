@@ -6,7 +6,7 @@ namespace Haoc\OpenTelemetry;
  * Resolves the active profile + overrides + env vars into a single object
  * consumed by the service provider and the TraceRequest middleware.
  *
- * Precedence: explicit config('haoc-otel.<key>') > env (HAOC_OTEL_*) >
+ * Precedence: explicit config('otel.<key>') > env (OTEL_*) >
  * profile defaults.
  */
 class Profile
@@ -32,7 +32,7 @@ class Profile
     }
 
     /**
-     * Resolves the profile from the `haoc-otel` Laravel config (which itself
+     * Resolves the profile from the `otel` Laravel config (which itself
      * already reads env vars via env()).
      *
      * @param array<string, mixed> $config
@@ -73,6 +73,17 @@ class Profile
             self::compilePatterns($config['ignore_routes'] ?? []),
         );
 
+        // ── log_payload_mode: env override > profile default ────────────
+        $validModes = ['none', 'json-attr', 'flatten'];
+        $logPayloadMode = $base['log_payload_mode'];
+        $envLogMode = getenv('OTEL_LOG_PAYLOAD_MODE');
+        if ($envLogMode !== false && in_array($envLogMode, $validModes, true)) {
+            $logPayloadMode = $envLogMode;
+        }
+        if (isset($config['log_payload_mode']) && in_array($config['log_payload_mode'], $validModes, true)) {
+            $logPayloadMode = $config['log_payload_mode'];
+        }
+
         return new self([
             'profile'               => $name,
             'sample_ratio'          => $ratio,
@@ -80,6 +91,7 @@ class Profile
             'capture_response_body' => $captureResponse,
             'ignore_routes'         => $ignoreRoutes,
             'log_destination'       => $config['log_destination'] ?? 'both',
+            'log_payload_mode'      => $logPayloadMode,
         ]);
     }
 
@@ -127,6 +139,7 @@ class Profile
      *     capture_request_body: bool,
      *     capture_response_body: bool,
      *     ignore_routes: array<int, string>,
+     *     log_payload_mode: string,
      * }
      */
     private static function baselineFor(string $name): array
@@ -143,21 +156,24 @@ class Profile
         return match ($name) {
             self::STANDARD => [
                 'sample_ratio'          => 1.0,
-                'capture_request_body'  => true,
-                'capture_response_body' => true,
+                'capture_request_body'  => false,
+                'capture_response_body' => false,
                 'ignore_routes'         => $defaultIgnore,
+                'log_payload_mode'      => 'json-attr',
             ],
             self::VERBOSE => [
                 'sample_ratio'          => 1.0,
                 'capture_request_body'  => true,
                 'capture_response_body' => true,
                 'ignore_routes'         => [],
+                'log_payload_mode'      => 'json-attr',
             ],
             default => [
                 'sample_ratio'          => 1.0,
                 'capture_request_body'  => false,
                 'capture_response_body' => false,
                 'ignore_routes'         => $defaultIgnore,
+                'log_payload_mode'      => 'none',
             ],
         };
     }
