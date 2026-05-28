@@ -29,7 +29,7 @@ return [
     | Named noise-reduction baseline:
     |   - `minimal` (default): only the request span + DB queries + errors;
     |     health/horizon/telescope routes ignored; body/response capture OFF.
-    |   - `standard`: minimal + body/response capture.
+    |   - `standard`: minimal + sanitized payload in structured logs.
     |   - `verbose`: legacy "everything on" behaviour.
     |
     */
@@ -59,7 +59,7 @@ return [
     | Capture toggles
     |--------------------------------------------------------------------------
     | Whether to flatten request/response bodies into span attributes.
-    | Both default to FALSE in `minimal`; TRUE in `standard`/`verbose`.
+    | Defaults are FALSE in `minimal` and `standard`; TRUE only in `verbose`.
     */
     'capture_request_body' => env('OTEL_CAPTURE_BODY'),
     'capture_response_body' => env('OTEL_CAPTURE_RESPONSE'),
@@ -87,5 +87,30 @@ return [
         'refresh_token', 'authorization', 'db_password', 'tasy_password',
         // PT-BR / HAOC PII
         'cpf', 'rg', 'cnpj', 'cartao_sus', 'cns',
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Identity
+    |--------------------------------------------------------------------------
+    | user.* is the canonical cross-plugin identity contract. Email is opt-in.
+    */
+    'identity' => [
+        'propagate' => env('HAOC_OTEL_PROPAGATE_USER', true),
+        'user_id_mode' => env('HAOC_OTEL_USER_ID_MODE', 'raw'), // raw | hash | off
+        'include_email' => env('HAOC_OTEL_INCLUDE_USER_EMAIL', false),
+        'hash_salt' => env('HAOC_OTEL_HASH_SALT', ''),
+        'resolver' => null,
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Privacy / LGPD
+    |--------------------------------------------------------------------------
+    */
+    'privacy' => [
+        'public_ip_mode' => env('HAOC_OTEL_PUBLIC_IP_MODE', 'raw'), // raw | hash | off
+        'hash_salt' => env('HAOC_OTEL_HASH_SALT', ''),
+        'redact_value_patterns' => [],
     ],
 ];

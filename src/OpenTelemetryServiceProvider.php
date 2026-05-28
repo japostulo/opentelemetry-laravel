@@ -2,6 +2,7 @@
 
 namespace Haoc\OpenTelemetry;
 
+use Haoc\OpenTelemetry\Console\OtelDoctorCommand;
 use Illuminate\Support\ServiceProvider;
 use OpenTelemetry\API\Logs\LoggerInterface;
 use OpenTelemetry\API\Trace\TracerProviderInterface;
@@ -112,6 +113,10 @@ class OpenTelemetryServiceProvider extends ServiceProvider
         $this->publishes([
             __DIR__ . '/../config/otel.php' => config_path('otel.php'),
         ], 'otel-config');
+
+        if ($this->app->runningInConsole()) {
+            $this->commands([OtelDoctorCommand::class]);
+        }
 
         $this->app->terminating(function () {
             $traceProvider = $this->app->make(TracerProviderInterface::class);

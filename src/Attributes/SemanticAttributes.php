@@ -106,6 +106,20 @@ final class SemanticAttributes
      */
     public const TEST_RUN_ID = 'test.run_id';
 
+    // ── Public client IP resolution ─────────────────────────────────────
+
+    /** First public (non-private) IP resolved from request headers. */
+    public const CLIENT_PUBLIC_IP = 'haoc.client.public_ip';
+
+    /** Which header or source provided the public IP (forwarded, cf-connecting-ip, x-forwarded-for, x-real-ip, socket). */
+    public const CLIENT_IP_SOURCE = 'haoc.client.ip_source';
+
+    /** Total number of IPs in the X-Forwarded-For chain. */
+    public const CLIENT_IP_CHAIN_LENGTH = 'haoc.client.ip_chain_length';
+
+    /** Raw X-Forwarded-For header value. */
+    public const CLIENT_FORWARDED_FOR = 'haoc.client.forwarded_for';
+
     /**
      * Clean one-line title shown in the SigNoz log list.
      * Format: "METHOD /route [traceId]" for requests,

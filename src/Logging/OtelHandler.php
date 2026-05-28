@@ -70,7 +70,7 @@ class OtelHandler extends AbstractProcessingHandler
         $otelRecord = (new OtelLogRecord($this->buildBody($record)))
             ->setTimestamp((int) ($record->datetime->format('U.u') * 1_000_000_000))
             ->setSeverityNumber($severity)
-            ->setSeverityText($record->level->name);
+            ->setSeverityText(strtoupper($record->level->name));
 
         $attributes = [
             // Stamped per-record so runtime config changes reflect immediately

@@ -111,6 +111,19 @@ class PayloadSanitizerTest extends TestCase
         $this->assertSame('bob', $decoded['user']['name']);
     }
 
+    public function test_redacts_sensitive_values(): void
+    {
+        $result = PayloadSanitizer::sanitizeToJsonAttr([
+            'documento' => '123.456.789-00',
+            'auth' => 'Bearer eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIn0.signature',
+        ]);
+
+        $this->assertNotNull($result);
+        $decoded = json_decode($result, true);
+        $this->assertSame('[REDACTED]', $decoded['documento']);
+        $this->assertSame('[REDACTED]', $decoded['auth']);
+    }
+
     public function test_truncates_at_max_bytes_with_indicator(): void
     {
         // Use chars outside base64 alphabet (spaces, !) to avoid binary detection heuristic

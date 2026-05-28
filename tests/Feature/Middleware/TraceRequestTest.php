@@ -169,6 +169,49 @@ final class TraceRequestTest extends TestCase
         );
     }
 
+    public function test_identity_resolver_emits_canonical_user_attributes_without_email_by_default(): void
+    {
+        config()->set('otel.identity.resolver', fn(Request $request) => [
+            'id' => 'usr_123',
+            'type' => 'authenticated',
+            'role' => 'operator',
+            'tenant_id' => 'tenant_a',
+            'email' => 'operator@example.com',
+        ]);
+
+        $spanAttrs = [];
+        $mw = new TraceRequest($this->buildCapturingTracer($spanAttrs), $this->buildProfile('standard'));
+        $req = Request::create('/api/users/1', 'GET');
+
+        $mw->handle($req, fn() => new JsonResponse(['id' => 1], 200));
+
+        $this->assertSame('usr_123', $spanAttrs['user.id']);
+        $this->assertSame('authenticated', $spanAttrs['user.type']);
+        $this->assertSame('operator', $spanAttrs['user.role']);
+        $this->assertSame('tenant_a', $spanAttrs['user.tenant_id']);
+        $this->assertArrayNotHasKey('user.email', $spanAttrs);
+        $legacyUserAttrs = array_filter(
+            array_keys($spanAttrs),
+            fn($key) => str_starts_with((string) $key, 'haoc.user.'),
+        );
+        $this->assertEmpty($legacyUserAttrs);
+    }
+
+    public function test_identity_falls_back_to_baggage(): void
+    {
+        $spanAttrs = [];
+        $mw = new TraceRequest($this->buildCapturingTracer($spanAttrs), $this->buildProfile('standard'));
+        $req = Request::create('/api/users/1', 'GET', [], [], [], [
+            'HTTP_BAGGAGE' => 'user.id=usr_bag,user.type=authenticated,user.role=viewer',
+        ]);
+
+        $mw->handle($req, fn() => new JsonResponse(['id' => 1], 200));
+
+        $this->assertSame('usr_bag', $spanAttrs['user.id']);
+        $this->assertSame('authenticated', $spanAttrs['user.type']);
+        $this->assertSame('viewer', $spanAttrs['user.role']);
+    }
+
     // ── standard: request body in log ───────────────────────────────
 
     public function test_standard_logs_request_body_as_haoc_request_json(): void

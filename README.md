@@ -53,7 +53,7 @@ protected $middleware = [
 ### O que o middleware captura
 
 - `http.method`, `http.route`, `http.url`, `http.status_code`, `http.duration_ms`
-- **User Identity**: `haoc.user.id`, `haoc.user.email` (do Auth)
+- **User Identity**: `user.id`, `user.type`, `user.role` e opcionais; `user.email` é opt-in
 - **Infraestrutura**: `X-Forwarded-For`, `X-Real-IP`, `Via`, `network.hop_count`
 - **Baggage do Frontend**: atributos `page.*`, `browser.*`, `device.*`, `app.*`
 - **Query/Route/Body params** (com redação de campos sensíveis)
@@ -119,8 +119,10 @@ networks:
 
 | Atributo | Exemplo |
 |---|---|
-| `haoc.user.id` | `PAC12345` |
-| `haoc.user.email` | `maria@email.com` |
+| `user.id` | `PAC12345` |
+| `user.type` | `authenticated` |
+| `user.role` | `operator` |
+| `user.email` | `maria@email.com` (somente com `otel.identity.include_email=true`) |
 
 ### Infraestrutura / Hops
 
@@ -137,7 +139,7 @@ networks:
 | `page.route` | `@haocruz/opentelemetry-web` |
 | `browser.name` | `@haocruz/opentelemetry-web` |
 | `device.type` | `@haocruz/opentelemetry-web` |
-| `haoc.user.id` | `@haocruz/opentelemetry-web` |
+| `user.id` | `@haocruz/opentelemetry-web` |
 
 ## Dados Sensíveis (Redação Automática)
 

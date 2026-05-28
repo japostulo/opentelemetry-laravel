@@ -39,6 +39,15 @@ final class PayloadSanitizer
 
     private const REDACTED = '[REDACTED]';
 
+    /** @var string[] */
+    private const DEFAULT_SENSITIVE_VALUE_PATTERNS = [
+        '/\b\d{3}\.?\d{3}\.?\d{3}-?\d{2}\b/u',
+        '/\b\d{2}\.?\d{3}\.?\d{3}\/?\d{4}-?\d{2}\b/u',
+        '/\b\d{15}\b/u',
+        '/\bBearer\s+[A-Za-z0-9._~+\/-]+=*/iu',
+        '/\beyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\b/u',
+    ];
+
     /**
      * Detect whether a string value looks like binary or base64-encoded data.
      *
@@ -158,11 +167,43 @@ final class PayloadSanitizer
             return $result;
         }
 
-        if (is_string($data) && self::isBinaryContent($data)) {
-            return '[BINARY]';
+        if (is_string($data)) {
+            if (self::isBinaryContent($data)) {
+                return '[BINARY]';
+            }
+
+            return self::redactSensitiveValue($data);
         }
 
         return $data;
+    }
+
+    public static function redactSensitiveValue(string $value): string
+    {
+        $extraPatterns = [];
+        if (function_exists('config')) {
+            try {
+                $configured = config('otel.privacy.redact_value_patterns', []);
+                $extraPatterns = is_array($configured) ? $configured : [];
+            } catch (\Throwable) {
+                $extraPatterns = [];
+            }
+        }
+
+        $patterns = array_merge(
+            self::DEFAULT_SENSITIVE_VALUE_PATTERNS,
+            $extraPatterns,
+        );
+        $out = $value;
+        foreach ($patterns as $pattern) {
+            if (is_string($pattern) && $pattern !== '') {
+                $next = @preg_replace($pattern, self::REDACTED, $out);
+                if ($next !== null) {
+                    $out = $next;
+                }
+            }
+        }
+        return $out;
     }
 
     /**
